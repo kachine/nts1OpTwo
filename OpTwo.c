@@ -104,12 +104,12 @@ void OSC_CYCLE(const user_osc_param_t * const params,
   // Last address of output buffer
   const q31_t * y_e = y + frames;
 
-  // MIDI note# of current process
+  // MIDI note# and pitch modifier of current process
+  // If pitch bend message has already received, note value may be differ from actual MIDI note#
+  // Pitch modifier value takes within 0 to 255, the value indicate 1/255 of semitone
+  // The pitch modifier is always upperward, so downer pitch bend is processed as a combination of note# decrement and adequate upperward pitch modifier.
   uint8_t note = params->pitch >> 8;
-
-  // Corresponding frequency of the MIDI note#
-  // Not only notenumber but also pitchbend and built-in LFO pitch modulation is taken into account
-  float baseFreq = osc_notehzf(note);
+  uint8_t mod = params->pitch & 0xFF;
 
   // Current LFO value within -1 to 1
   float lfo = q31_to_f32(params->shape_lfo);
@@ -134,7 +134,7 @@ void OSC_CYCLE(const user_osc_param_t * const params,
     // Step operator phase
     for(uint8_t operatorId = 0; operatorId < NUM_OPERATORS; operatorId++){
       // Step a phase ratio
-      OP[operatorId].phase += baseFreq * OP[operatorId].ratio / k_samplerate;
+      OP[operatorId].phase += osc_w0f_for_note(note, mod) * OP[operatorId].ratio;
       // Keep the phase ratio within 0 <= phase < 1
       OP[operatorId].phase -= (uint32_t) OP[operatorId].phase;
     }
